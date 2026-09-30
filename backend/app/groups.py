@@ -18,6 +18,18 @@ are done, and none of it can be done from code alone:
   4. Set IMPERSONATED_ADMIN_EMAIL below to a real Workspace super-admin's
      email — domain-wide delegation calls must impersonate an actual
      admin user; a bare service account can't call this API directly.
+
+IMPORTANT — different from the Gemini call in gateway.py: domain-wide
+delegation impersonation (.with_subject() below) genuinely requires a
+REAL downloadable service account key file with a private key. Your own
+personal "gcloud auth application-default login" session (the workaround
+used for Gemini when an org policy blocks key creation) CANNOT do this —
+impersonation is a fundamentally different mechanism. If your
+organization blocks service account key creation, this specific feature
+is blocked until someone with Organization Policy Administrator rights
+grants an exception, or a different delegation mechanism is used. Not a
+problem today (DEV_FAKE_ROLE bypasses this entirely) — but worth knowing
+before assuming this is fully solved once local testing works.
 """
 from googleapiclient.discovery import build
 from google.oauth2 import service_account

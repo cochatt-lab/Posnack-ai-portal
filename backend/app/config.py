@@ -21,16 +21,22 @@ class Settings(BaseSettings):
     vertex_location: str = "global"
     gemini_model: str = "gemini-3.1-flash-lite"
 
-    # Path to a Service Account JSON key with (a) the "Agent Platform
-    # User" IAM role on the GCP project above, and (b) domain-wide
-    # delegation authorized by a Workspace admin for the Admin SDK
-    # Directory API's groups.readonly scope — needed to check a user's
-    # Google Group membership for role/grade-band determination.
-    # Authorizing delegation is a Workspace-admin-level step; it can't be
-    # done from this code.
-    service_account_key_path: str
+    # OPTIONAL now. google.auth.default() (used in gateway.py) reads Google's
+    # standard GOOGLE_APPLICATION_CREDENTIALS environment variable directly —
+    # set THAT to whichever credential file you actually have (a service
+    # account key if your org allows creating them, or a local
+    # "gcloud auth application-default login" file for local dev). This
+    # setting is kept for documentation/reference; nothing in the code
+    # requires it to be set anymore.
+    service_account_key_path: str | None = None
 
     session_lifetime_hours: int = 8  # matches the spec doc: sessions expire with the school day
+
+    # The real deployed frontend's URL (e.g. https://portal-frontend-xyz.a.run.app,
+    # or the real custom domain once one exists). Used to lock down CORS —
+    # tightening this matters more now that this is heading to real Cloud
+    # Run deployment, not just local testing.
+    frontend_origin: str = "http://localhost:3000"
 
     class Config:
         env_file = ".env"

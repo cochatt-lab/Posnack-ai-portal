@@ -1,0 +1,6 @@
+.env
+secrets/
+node_modules/
+.next/
+__pycache__/
+*.pyc

@@ -1,0 +1,96 @@
+name: Deploy to Cloud Run
+
+# Uses Workload Identity Federation, not a downloadable service account
+# key — consistent with the org policy blocking key creation, and
+# actually the more secure approach Google itself recommends. One-time
+# setup needed before this workflow can run (see README.md):
+#   1. Create a Workload Identity Pool + Provider trusting GitHub's OIDC
+#      tokens for this specific repo.
+#   2. Create (or reuse) a service account with Cloud Run Admin,
+#      Artifact Registry Writer, and Agent Platform User roles.
+#   3. Allow that Workload Identity Provider to impersonate that service
+#      account.
+#   4. Add these as GitHub repo secrets (Settings -> Secrets and
+#      variables -> Actions): GCP_PROJECT_ID, GCP_WORKLOAD_IDENTITY_PROVIDER,
+#      GCP_SERVICE_ACCOUNT_EMAIL.
+
+on:
+  push:
+    branches: [main]
+
+env:
+  REGION: us-central1  # Cloud Run itself needs a real region, unlike Vertex AI's "global" option
+  REPO: posnack-ai-portal
+
+permissions:
+  contents: read
+  id-token: write  # required for Workload Identity Federation
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    outputs:
+      backend_url: ${{ steps.deploy.outputs.url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      - name: Build and push backend image
+        run: |
+          docker build -t ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPO }}/backend:${{ github.sha }} ./backend
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPO }}/backend:${{ github.sha }}
+
+      - id: deploy
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: portal-backend
+          region: ${{ env.REGION }}
+          image: ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPO }}/backend:${{ github.sha }}
+          flags: --service-account=${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+          env_vars: |
+            GOOGLE_WORKSPACE_DOMAIN=posnackschool.org
+            GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
+            VERTEX_LOCATION=global
+            GEMINI_MODEL=gemini-3.1-flash-lite
+          secrets: |
+            GOOGLE_CLIENT_ID=google-client-id:latest
+            GOOGLE_CLIENT_SECRET=google-client-secret:latest
+            SESSION_SECRET=session-secret:latest
+
+  deploy-frontend:
+    needs: deploy-backend
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT_EMAIL }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
+      - name: Build and push frontend image
+        run: |
+          docker build --build-arg BACKEND_URL=${{ needs.deploy-backend.outputs.backend_url }} \
+            -t ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPO }}/frontend:${{ github.sha }} ./frontend
+          docker push ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPO }}/frontend:${{ github.sha }}
+
+      - uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: portal-frontend
+          region: ${{ env.REGION }}
+          image: ${{ env.REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ env.REPO }}/frontend:${{ github.sha }}

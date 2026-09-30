@@ -3,6 +3,8 @@ WORKDIR /app
 COPY package.json .
 RUN npm install
 COPY . .
+ARG BACKEND_URL
+ENV BACKEND_URL=${BACKEND_URL}
 RUN npm run build
 
 FROM node:20-slim

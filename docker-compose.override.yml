@@ -1,0 +1,20 @@
+# Docker Compose automatically merges this file on top of docker-compose.yml.
+# This ONLY matters for local testing — it exposes the frontend and backend
+# directly on your own machine, bypassing Caddy (which is configured for the
+# real domain, ai.posnackschool.org, and won't match "localhost" requests).
+# The real on-prem deployment doesn't use this file at all.
+services:
+  backend:
+    ports:
+      - "8000:8000"
+    # Mounts the ADC file "gcloud auth application-default login" created
+    # on YOUR machine into the container, and points the standard
+    # GOOGLE_APPLICATION_CREDENTIALS variable at it. Windows path shown;
+    # on Mac/Linux it's usually ~/.config/gcloud instead of %APPDATA%\gcloud.
+    volumes:
+      - "${APPDATA}/gcloud:/root/.config/gcloud:ro"
+    environment:
+      - GOOGLE_APPLICATION_CREDENTIALS=/root/.config/gcloud/application_default_credentials.json
+  frontend:
+    ports:
+      - "3000:3000"

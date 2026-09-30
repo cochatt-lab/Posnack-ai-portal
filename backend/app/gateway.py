@@ -94,10 +94,16 @@ def _call_gemini(prompt: str) -> str:
         f"https://{host}/v1/projects/{settings.gcp_project_id}/locations/"
         f"{settings.vertex_location}/publishers/google/models/{settings.gemini_model}:generateContent"
     )
-    credentials, _ = google.auth.load_credentials_from_file(
-        settings.service_account_key_path,
-        scopes=["https://www.googleapis.com/auth/cloud-platform"],
-    )
+    # Application Default Credentials — works with EITHER a mounted service
+    # account key file (via GOOGLE_APPLICATION_CREDENTIALS) OR a developer's
+    # own "gcloud auth application-default login" session. Deliberately not
+    # using load_credentials_from_file(settings.service_account_key_path)
+    # here: many orgs (including Google's own newer default policy) now
+    # block creating downloadable service account keys outright, so a
+    # workflow that HARD-REQUIRES a key file breaks in exactly that case.
+    # google.auth.default() picks up whichever credential source is
+    # actually available without assuming it's a key file.
+    credentials, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
     credentials.refresh(google.auth.transport.requests.Request())
 
     response = requests.post(

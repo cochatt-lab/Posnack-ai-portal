@@ -16,7 +16,7 @@ app = FastAPI(title="Posnack School AI Learning Portal")
 app.add_middleware(SessionMiddleware, secret_key=settings.session_secret)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # tighten to the real frontend origin before this goes past a pilot
+    allow_origins=[settings.frontend_origin],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
