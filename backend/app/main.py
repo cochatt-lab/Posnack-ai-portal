@@ -25,7 +25,7 @@ app.add_middleware(
 
 @app.get("/api/auth/login")
 async def login(request: Request):
-    redirect_uri = request.url_for("auth_callback")
+    redirect_uri = f"{settings.frontend_origin}/api/auth/callback"
     return await oauth.google.authorize_redirect(request, redirect_uri)
 
 
