@@ -1,3 +1,4 @@
+# retry deploy
 """FastAPI app: wires Google login, the security gateway, and role-based access together."""
 from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.responses import RedirectResponse, JSONResponse
